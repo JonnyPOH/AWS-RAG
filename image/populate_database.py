@@ -5,12 +5,27 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from langchain_community.vectorstores import Chroma
-
+from dotenv import load_dotenv
 from src.rag_app.get_embedding_function import get_embedding_function
 
+load_dotenv()
 
-CHROMA_PATH = "src/data/chroma"
-DATA_SOURCE_PATH = "src/data/source"
+# Access AWS credentials from environment variables
+aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+aws_region = os.getenv("AWS_DEFAULT_REGION")
+
+
+CHROMA_PATH = "image/src/data/chroma"
+DATA_SOURCE_PATH = "image/src/data/source"
+
+import boto3
+boto3.setup_default_session(
+    aws_access_key_id=aws_access_key,
+    aws_secret_access_key=aws_secret_key,
+    region_name=aws_region,
+)
+
 
 
 def main():
@@ -22,11 +37,15 @@ def main():
     if args.reset:
         print("✨ Clearing Database")
         clear_database()
+        print('database cleared')
 
     # Create (or update) the data store.
     documents = load_documents()
+    print('docs loaded')
     chunks = split_documents(documents)
+    print('doc split')
     add_to_chroma(chunks)
+    print('added')
 
 
 def load_documents():
@@ -46,10 +65,11 @@ def split_documents(documents: list[Document]):
 
 def add_to_chroma(chunks: list[Document]):
     # Load the existing database.
+    print('checkpoint1')
     db = Chroma(
         persist_directory=CHROMA_PATH, embedding_function=get_embedding_function()
     )
-
+    print('checkpoint2')
     # Calculate Page IDs.
     chunks_with_ids = calculate_chunk_ids(chunks)
     for chunk in chunks:
